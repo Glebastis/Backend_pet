@@ -1,0 +1,6 @@
+# backend_course_stepik_public
+venv
+__pycache__
+postgres_data/
+.env*
+backend_course_stepik_public/
