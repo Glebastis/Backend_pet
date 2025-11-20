@@ -18,3 +18,11 @@ class UserNotExistsException(BookingException):
 class InvalidCredentialsException(BookingException):
     status_code=status.HTTP_401_UNAUTHORIZED
     detail="Неверные учетные данные"
+
+class UnauthorizedException(BookingException):
+    status_code=status.HTTP_401_UNAUTHORIZED
+    detail="Не авторизован"
+
+class TokenExpiredException(BookingException):
+    status_code=status.HTTP_401_UNAUTHORIZED
+    detail="Токен истек"
