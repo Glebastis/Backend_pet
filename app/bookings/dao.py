@@ -1,6 +1,5 @@
 from datetime import date
-import select
-from sqlalchemy import and_, func, insert, or_
+from sqlalchemy import and_, func, insert, or_, select
 from app.dao.base import BaseDAO
 from app.bookings.models import Bookings
 from app.database import async_session_maker
@@ -32,7 +31,7 @@ class BookingDAO(BaseDAO):
             ).cte('booked_rooms')
 
             rooms_left = select(
-                Rooms.rooms_quantity - func.count(booked_rooms.c.room_id).label('rooms_left')).select_from(
+                Rooms.quantity - func.count(booked_rooms.c.room_id).label('rooms_left')).select_from(
                     Rooms
                 ).outerjoin(
                     booked_rooms, booked_rooms.c.room_id == Rooms.id
@@ -42,9 +41,9 @@ class BookingDAO(BaseDAO):
                     Rooms.quantity, booked_rooms.c.room_id
                 )
             
-            result = await session.execute(select(rooms_left).limit(1))
+            result = await session.execute(rooms_left)
             room_left = result.scalar_one_or_none()
-            if not room_left:
+            if room_left is None or room_left <= 0:
                 raise RoomFullyBookedException
             
             print(result.mappings().all())
