@@ -19,4 +19,4 @@ async def get_current_user(token: str = Depends(get_token)):
     user = await UserDAO.find_one_or_none(email=payload.get("sub"))
     if not user:
         raise UnauthorizedException
-    return payload
+    return user

@@ -26,3 +26,7 @@ class UnauthorizedException(BookingException):
 class TokenExpiredException(BookingException):
     status_code=status.HTTP_401_UNAUTHORIZED
     detail="Токен истек"
+
+class RoomFullyBookedException(BookingException):
+    status_code=status.HTTP_409_CONFLICT
+    detail="Комната уже забронирована"
