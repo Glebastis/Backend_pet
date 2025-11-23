@@ -8,9 +8,13 @@
 <body>
     <div class="container">
         {% for hotel in hotels %}
-            <div class="hotel">
-                <h1>{{ hotel.name }}</h1>
-                <h2>{{ hotel.location }}</h2>
+            <div class="hotel" style="display: flex; margin-bottom: 20px; margin-left: 20px;">
+                <img src="/static/images/{{ hotel.image_id }}.webp" alt="{{ hotel.name }}"
+                alt="{{ hotel.name }}" width="300" height="200">
+                <div class="hotel-info"> 
+                    <h1>{{ hotel.name }}</h1>
+                    <h2>{{ hotel.location }}</h2>
+                </div>
             </div>
         {% endfor %}
     </div>
