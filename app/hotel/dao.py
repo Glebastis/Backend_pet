@@ -1,39 +1,69 @@
 from datetime import date
-from sqlalchemy import and_, func, insert, or_, select
+from sqlalchemy import func, select
 from app.dao.base import BaseDAO
 from app.bookings.dao import BookingDAO
-from app.hotel.models import Hotel
+from app.hotel.models import Hotel, Rooms
 from app.database import async_session_maker
-from app.rooms.models import Rooms
+from app.hotel.schemas import SHotel, SRoom
 
 
 class HotelDAO(BaseDAO):
     model = Hotel
+    rooms_model = Rooms
     
     @classmethod
     async def get_hotels_list_by_region(cls, location: str, date_from: date, date_to: date):
         '''Получение списка отелей с количеством свободных комнат'''
-        rooms_left_list = await BookingDAO.rooms_left(date_from, date_to)
-        free_room_ids = []
-        for room in rooms_left_list:
-            if room['rooms_left'] > 0:
-                free_room_ids.append(room['id'])
         async with async_session_maker() as session:
-            conditions = [cls.model.location.contains(location)]
-            if free_room_ids:
-                conditions.append(Rooms.id.in_(free_room_ids))
-            else:
-                # If no free rooms, return empty result
-                return []
+            # Используем CTE из BookingDAO для подсчета свободных комнат
+            rooms_left = BookingDAO.rooms_left_cte(date_from, date_to)
             
-            # First get distinct hotel IDs that match the conditions
-            hotel_ids_subquery = select(cls.model.id).distinct().outerjoin(
-                Rooms, cls.model.id == Rooms.hotel_id
-            ).where(and_(*conditions)).subquery()
+            # CTE для получения отелей с суммой свободных комнат
+            # rooms_left уже содержит все комнаты с подсчитанными свободными местами
+            hotels_rooms_sum = select(
+                rooms_left.c.hotel_id,
+                func.sum(rooms_left.c.rooms_left).label('rooms_quantity')
+            ).group_by(
+                rooms_left.c.hotel_id
+            ).having(
+                func.sum(rooms_left.c.rooms_left) > 0
+            ).cte('hotels_rooms_sum')
             
-            # Then fetch the full hotel objects
-            all_hotel_region_not_fully_booked = select(cls.model).where(
-                cls.model.id.in_(select(hotel_ids_subquery.c.id))
+            # Основной запрос: отели с суммой свободных комнат
+            hotels_with_free_rooms = select(
+                cls.model.id,
+                cls.model.name,
+                cls.model.location,
+                cls.model.services,
+                hotels_rooms_sum.c.rooms_quantity,
+                cls.model.image_id
+            ).select_from(
+                cls.model
+            ).join(
+                hotels_rooms_sum, cls.model.id == hotels_rooms_sum.c.hotel_id
+            ).where(
+                cls.model.location.contains(location)
             )
-            result = await session.execute(all_hotel_region_not_fully_booked)
-            return result.mappings().all()
+            
+            result = await session.execute(hotels_with_free_rooms)
+            result = result.mappings().all()
+            return [SHotel.model_validate(hotel) for hotel in result]
+
+    @classmethod
+    async def get_rooms_by_hotel_id(cls, hotel_id: int, date_from: date, date_to: date):
+        '''Получение списка комнат по id отеля'''
+        async with async_session_maker() as session:
+            rooms_left = BookingDAO.rooms_left_cte(date_from, date_to)
+            rooms_info = select(
+                cls.rooms_model.id,
+                cls.rooms_model.name,
+                cls.rooms_model.price,
+                cls.rooms_model.services,
+                cls.rooms_model.image_id,
+                rooms_left.c.rooms_left
+            ).select_from(
+                cls.rooms_model
+            ).join(rooms_left, cls.rooms_model.id == rooms_left.c.id).where(rooms_left.c.hotel_id == hotel_id)
+            result = await session.execute(rooms_info)
+            result = result.mappings().all()
+            return [SRoom.model_validate(room) for room in result]
