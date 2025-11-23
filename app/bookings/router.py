@@ -29,6 +29,6 @@ async def add_booking(
         date_to=date_to
     )
 
-@router.get("/{booking_id}")
-async def get_booking( booking_id: int) -> SBooking:
-    pass
+@router.delete("/{booking_id}", status_code=200)
+async def delete_booking(booking_id: int, user: Users = Depends(get_current_user)) -> bool:
+    return await BookingDAO.delete(booking_id, user.id)

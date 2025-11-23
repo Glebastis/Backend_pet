@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import and_, func, insert, or_, select
+from sqlalchemy import and_, func, insert, or_, select, delete
 from app.dao.base import BaseDAO
 from app.bookings.models import Bookings
 from app.database import async_session_maker
@@ -60,16 +60,12 @@ class BookingDAO(BaseDAO):
     @classmethod
     async def add(cls, user: Users, room_id: int, date_from: date, date_to: date):
         '''Добавление бронирования'''
-        rooms_left_list = await cls.rooms_left(date_from, date_to)
-        
         async with async_session_maker() as session:
-            rooms_left = None
-            for room in rooms_left_list:
-                if room['id'] == room_id:
-                    rooms_left = room['rooms_left']
-                    break
-            
-            if rooms_left is None or rooms_left <= 0:
+            rooms_left_cte = cls.rooms_left_cte(date_from, date_to)
+            query = select(rooms_left_cte).where(rooms_left_cte.c.id == room_id)
+            result = await session.execute(query)
+            rooms_left = result.mappings().one()
+            if rooms_left is None or rooms_left['rooms_left'] <= 0:
                 raise RoomFullyBookedException
 
             get_price = select(Rooms.price).where(Rooms.id == room_id)
@@ -87,3 +83,11 @@ class BookingDAO(BaseDAO):
             await session.commit()
             return new_booking.scalar()
             
+    @classmethod
+    async def delete(cls, booking_id: int, user_id: int):
+        '''Удаление бронирования'''
+        async with async_session_maker() as session:
+            delete_booking = delete(Bookings).where(Bookings.id == booking_id, Bookings.user_id == user_id)
+            await session.execute(delete_booking)
+            await session.commit()
+            return True

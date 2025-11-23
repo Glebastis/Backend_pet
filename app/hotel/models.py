@@ -16,6 +16,7 @@ class Hotel(Base):
     def __str__(self):
         return f"Отель {self.name}"
 
+
 class Rooms(Base):
     __tablename__ = "rooms"
 

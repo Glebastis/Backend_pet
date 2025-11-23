@@ -67,3 +67,12 @@ class HotelDAO(BaseDAO):
             result = await session.execute(rooms_info)
             result = result.mappings().all()
             return [SRoom.model_validate(room) for room in result]
+
+    @classmethod
+    async def get_hotel_by_id(cls, hotel_id: int):
+        '''Получение отеля по id'''
+        async with async_session_maker() as session:
+            hotel = select(cls.model).where(cls.model.id == hotel_id)
+            result = await session.execute(hotel)
+            result = result.scalar_one_or_none()
+            return SHotel.model_validate(result)
