@@ -1,22 +1,18 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 from app.bookings.router import router as router_bookings
 from app.users.router import router as router_users
 from app.hotel.router import router as router_hotel
 
+from app.pages.router import router as router_pages
+
+
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(router_users)
 app.include_router(router_bookings)
 app.include_router(router_hotel)
-
-@app.get("/")
-async def root():
-    return {"message": "Привет, мир"}
-
-# @app.get("/hotels")
-# async def get_hotels():
-#     return "Отель Бридж Резорт 5 звезд"
-
-if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+app.include_router(router_pages)
