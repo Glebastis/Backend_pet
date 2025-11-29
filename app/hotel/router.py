@@ -2,6 +2,8 @@ from fastapi import APIRouter, Query
 from datetime import date
 from app.hotel.schemas import SHotel, SRoom
 from app.hotel.dao import HotelDAO
+from fastapi_cache.decorator import cache
+import asyncio
 
 
 router = APIRouter(
@@ -10,11 +12,14 @@ router = APIRouter(
 )
 
 @router.get("/{region}", status_code=200)
+@cache(expire=20)
 async def get_hotels_list_by_region(
                                 location: str = Query(...), 
                                 date_from: date = Query(...), 
                                 date_to: date = Query(...),
                             ) -> list[SHotel]:
+
+    await asyncio.sleep(2)
     return await HotelDAO.get_hotels_list_by_region(location, date_from, date_to)
 
 @router.get("/{hotel_id}/rooms", status_code=200)
